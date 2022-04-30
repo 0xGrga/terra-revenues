@@ -1,0 +1,25 @@
+.sidebar{
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  padding-top: 10vh;
+  width: 20vh;
+  top: 0vh;
+  left: 0;
+  height: 20vh;
+
+  a, span{
+    color: inherit;
+    font-size: 15px;
+    margin-left: 5px;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    padding-left: 1rem;
+    padding-bottom: 0.2rem;
+  }
+
+  a:hover{
+    text-decoration: none;
+  }
+}

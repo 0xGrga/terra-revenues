@@ -1,0 +1,18 @@
+.dashboard{
+  text-align: left;
+  span{
+    display: block;
+    font-size: 18px;
+  }
+}
+
+.row{
+  padding-bottom: 5vh;
+}
+
+.loading{
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
