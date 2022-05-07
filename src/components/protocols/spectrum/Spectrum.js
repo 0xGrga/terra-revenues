@@ -3,6 +3,7 @@ import { Col, Row, Container } from 'react-bootstrap';
 import { useState, useEffect } from "react";
 import ReactLoading from 'react-loading';
 import { Pie, Line } from 'react-chartjs-2';
+import React from "react";
 import axios from "axios";
 import "./spectrum.scss";
 
@@ -15,16 +16,20 @@ function Spectrum () {
   const [lockedLiqidity, setLockedLiqidity] = useState();
   const [yearlyRevenue, setYearlyRevenue] = useState();
   const [tvlTimeline, setTvlTimeLine] = useState();
+  const [vaultData, setVaultData] = useState();
   const [revenues, setRevenues] = useState();
   const [isLoaded, setLoading] = useState();
   const [price, setPrice] = useState();
+  const [lKey, setlKey] = useState();
   let pieData = {};
   let tvlData = {};
+
+  const [, updateState] = React.useState();
+  const forceUpdate = React.useCallback(() => updateState({}), []);
 
   useEffect(() => {
     async function fetchData () {
       const promises = [];
-
 
       promises.push(axios.get('https://specapi.azurefd.net/api/data?type=dashboard'));
       promises[promises.length - 1].then(
@@ -40,20 +45,88 @@ function Spectrum () {
             item.date = new Date(Date.parse(item.date)).toLocaleDateString("en-US");
             return item
           }).reverse());
+        }
+      )
+      promises.push(axios.get('https://specapi.azurefd.net/api/data?type=lpVault'));
+      promises[promises.length - 1].then(
+        data => {
+          const vaults = [];
+          for (const [key, value] of Object.entries(data.data.stat.pairs)){
+            const firstToken = key.split("|")[1];
+            var secondToken = key.split("|")[2];
 
-          setLoading(true);
+            if(secondToken === undefined){
+              continue;
+            }
+
+            if(secondToken.length === 44){
+              secondToken = data.data.tokenInfos[secondToken].symbol;
+            }else{
+              const tokenS = {
+                "uusd": "UST",
+                "uluna": "LUNA"
+              };
+              secondToken = tokenS[secondToken];
+            }
+
+
+            const tokenInfo = data.data.tokenInfos[firstToken];
+            if(tokenInfo){
+              vaults.push({
+                symbol: `${tokenInfo.symbol}-${secondToken}`,
+                farm: data.data.poolInfos[key].farm,
+                tvl: parseInt(value.tvl) / decimals,
+                apr: value.specApr * 100,
+                dpr: value.dpr * 100
+              });
+            }
+          }
+
+
+          setVaultData(vaults);
         }
       )
 
+      await Promise.all(promises);
+      setLoading(true);
+
     };
-    setRevenues({})
-    fetchData();
-  }, []);
+    if(!isLoaded){
+      setRevenues({})
+      fetchData();
+    }
+  }, [vaultData, isLoaded]);
+
+  function sortSymbol (key) {
+    function compareObjects(object1, object2, key){
+      const obj1 = object1[key];
+      const obj2 = object2[key];
+      var value = 0;
+
+      if(obj1 < obj2){
+        value = 1;
+      }
+      if(obj2 < obj1){
+        value = -1;
+      }
+      setlKey(key);
+      return value;
+    }
+    if(key === lKey){
+      setVaultData(vaultData.reverse())
+    }else{
+      setVaultData(vaultData.sort((vault1, vault2) => {
+        return compareObjects(vault1, vault2, key);
+      }));
+    }
+
+
+    forceUpdate();
+  }
 
 
 
   if(isLoaded){
-    console.log(isLoaded)
     pieData = {
       labels: Object.keys(revenues),
       datasets: [
@@ -125,6 +198,29 @@ function Spectrum () {
         <Row>
           <h3>Total Value Locked Timeline</h3>
           <Line options={options} data={tvlData} />
+        </Row>
+        <Row>
+          <h3>{vaultData.length} Vaults:</h3>
+          <table>
+            <tbody>
+              <tr>
+                <td onClick={() => sortSymbol("symbol")}>Vault Symbol</td>
+                <td onClick={() => sortSymbol("farm")}>Protocol</td>
+                <td onClick={() => sortSymbol("tvl")}>TVL (M$)</td>
+                <td onClick={() => sortSymbol("apr")}>Yearly Return</td>
+                <td onClick={() => sortSymbol("dpr")}>Daily Return</td>
+              </tr>
+              {vaultData.map((item, i) => (
+                <tr key={i}>
+                  <td>{item.symbol.toLocaleString()}</td>
+                  <td>{item.farm.toLocaleString()}</td>
+                  <td>{item.tvl.toLocaleString()}</td>
+                  <td>{item.apr.toLocaleString()}%</td>
+                  <td>{item.dpr.toLocaleString()}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </Row>
       </Container>
     ) : (
